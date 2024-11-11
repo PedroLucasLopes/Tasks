@@ -1,6 +1,7 @@
 import {
   Box,
   Card as ChakraCard,
+  HStack,
   Separator,
   Stack,
   Text,
@@ -8,11 +9,12 @@ import {
 } from "@chakra-ui/react";
 import { SkeletonText } from "../../../components/ui/skeleton";
 import { Dispatch, SetStateAction } from "react";
+import useParseDate from "../../../hook/useParseDate";
 
 interface IProps extends ITasks {
   loading: boolean;
-  setId?: Dispatch<SetStateAction<number>>;
   width?: string;
+  setId?: Dispatch<SetStateAction<number>>;
   getTaskById?: (id: number) => void;
 }
 
@@ -21,21 +23,14 @@ const Card: React.FC<IProps> = ({
   name,
   description,
   subtasks,
+  is_done,
   created_at,
   loading,
   setId,
   getTaskById,
 }) => {
-  const parseDate = () => {
-    const date = new Date(created_at!);
-
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const year = date.getFullYear();
-    const formattedDate = `${day}/${month}/${year}`;
-
-    return formattedDate;
-  };
+  const parseDate = useParseDate();
+  const formatedDate = parseDate(created_at!);
 
   return loading ? (
     <Stack gap="6" w="15rem" h="15rem">
@@ -49,14 +44,14 @@ const Card: React.FC<IProps> = ({
     <ChakraCard.Root
       w="15rem"
       h="15rem"
-      boxShadow="1px 2px 10px #dbdbdb"
+      cursor="pointer"
       onClick={() => {
         if (setId && getTaskById) {
           setId(id!);
           getTaskById(id!);
         }
       }}
-      cursor="pointer"
+      boxShadow="1px 2px 10px #dbdbdb"
       _hover={{
         transform: "scale(1.05)",
         transition: "transform 0.2s ease",
@@ -64,13 +59,22 @@ const Card: React.FC<IProps> = ({
       }}
     >
       <ChakraCard.Header textAlign="left" mb="-1.4rem">
-        <Text fontSize="1.3rem" fontWeight="bold">
-          {name}
-        </Text>
+        <HStack>
+          <Text
+            fontSize="1.3rem"
+            fontWeight="bold"
+            textDecoration={is_done ? "line-through" : "none"}
+          >
+            {name}
+          </Text>
+        </HStack>
         <Separator />
       </ChakraCard.Header>
       <ChakraCard.Body mb="1.5rem">
-        <VStack alignItems="start">
+        <VStack
+          alignItems="start"
+          textDecoration={is_done ? "line-through" : "none"}
+        >
           {description}
           {subtasks && subtasks.length > 0 && (
             <VStack
@@ -79,12 +83,21 @@ const Card: React.FC<IProps> = ({
               maxHeight="200px"
               overflow="hidden"
             >
-              <Text fontWeight="bold" mb="-.5rem">
+              <Text
+                fontWeight="bold"
+                mb="-.5rem"
+                textDecoration={is_done ? "line-through" : "none"}
+              >
                 Subtasks
               </Text>
               <VStack alignItems="start" overflow="hidden" mb="-2rem">
                 {subtasks.slice(0, 3).map((subtask, i) => (
-                  <Text key={i}>{subtask.name}</Text>
+                  <Text
+                    key={i}
+                    textDecoration={is_done ? "line-through" : "none"}
+                  >
+                    {subtask.name}
+                  </Text>
                 ))}
                 {subtasks.length > 2 && (
                   <Box
@@ -101,7 +114,9 @@ const Card: React.FC<IProps> = ({
           )}
         </VStack>
       </ChakraCard.Body>
-      <ChakraCard.Footer mt="-2rem">Criado em: {parseDate()}</ChakraCard.Footer>
+      <ChakraCard.Footer mt="-2rem">
+        Criado em: {formatedDate}
+      </ChakraCard.Footer>
     </ChakraCard.Root>
   );
 };

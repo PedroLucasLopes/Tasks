@@ -1,3 +1,4 @@
+import React, { Dispatch, SetStateAction, useCallback, useState } from "react";
 import {
   Box,
   Button,
@@ -7,13 +8,6 @@ import {
   VStack,
   Text,
 } from "@chakra-ui/react";
-import {
-  ChangeEvent,
-  Dispatch,
-  SetStateAction,
-  useCallback,
-  useState,
-} from "react";
 import { IoMdAdd, IoMdClose } from "react-icons/io";
 import instance from "../../../api/instance";
 import Checkbox from "../../../components/checkbox/Checkbox";
@@ -51,7 +45,7 @@ const EditBox: React.FC<IProps> = ({
   const addSubtask = useCallback(
     async (name: string) => {
       try {
-        await instance.post(`/api/subtasks/${id}`, { name: name });
+        await instance.post(`/api/subtasks/${id}`, { name });
         getTaskById(id);
         setCreateTaskUpdate(true);
       } catch (err) {
@@ -64,7 +58,7 @@ const EditBox: React.FC<IProps> = ({
   const editSubtask = useCallback(
     async (name: string, id: number, subtask_id: number) => {
       try {
-        await instance.put(`/api/subtasks/${subtask_id}`, { name: name });
+        await instance.put(`/api/subtasks/${subtask_id}`, { name });
         getTaskById(id);
         setCreateTaskUpdate(true);
       } catch (err) {
@@ -74,26 +68,69 @@ const EditBox: React.FC<IProps> = ({
     [getTaskById, setCreateTaskUpdate]
   );
 
+  const toggleTaskDone = useCallback(
+    async (isDone: boolean) => {
+      try {
+        await instance.put(`/api/tasks/${id}`, { is_done: isDone });
+
+        setId(0);
+        setTaskById((prev) => ({
+          ...prev,
+          is_done: isDone,
+        }));
+
+        setCreateTaskUpdate(true);
+      } catch (err) {
+        console.error("Erro ao atualizar o status da task:", err);
+      }
+    },
+    [id, setId, setTaskById, setCreateTaskUpdate]
+  );
+
+  const toggleSubtaskDone = useCallback(
+    async (subtaskId: number, isDone: boolean) => {
+      try {
+        await instance.put(`/api/subtasks/${subtaskId}`, { is_done: isDone });
+
+        setTaskById((prev) => ({
+          ...prev,
+          subtasks: prev.subtasks?.map((subtask) =>
+            subtask.id === subtaskId ? { ...subtask, is_done: isDone } : subtask
+          ),
+        }));
+
+        setCreateTaskUpdate(true);
+      } catch (err) {
+        console.error("Erro ao atualizar o status da subtask:", err);
+      }
+    },
+    [setTaskById, setCreateTaskUpdate]
+  );
+
   return (
     <Box
-      w="40rem"
+      w={["100%", "40rem"]}
       h="auto"
       mt="2rem"
-      p="2rem"
+      p={["1rem", "2rem"]}
       borderRadius="5px"
       border="1px solid #c4c4c4"
       display="flex"
       flexDirection="column"
     >
       <HStack>
+        <Checkbox
+          checked={taskById.is_done!}
+          onChange={() => toggleTaskDone(!taskById.is_done)}
+        />
         <Input
           type="text"
           defaultValue={taskById.name}
           outline="none"
           border="none"
           fontWeight="bold"
-          fontSize="1.5rem"
-          onChange={(e: ChangeEvent<HTMLInputElement>) => {
+          fontSize={["1.2rem", "1.5rem"]}
+          onChange={(e) => {
             setUpdateTask((prev) => ({
               ...prev,
               name: e.target.value,
@@ -113,49 +150,54 @@ const EditBox: React.FC<IProps> = ({
       <Input
         type="text"
         defaultValue={taskById.description}
+        placeholder="Adicionar descrição"
         outline="none"
         border="none"
-        fontSize="1.2rem"
-        onChange={(e: ChangeEvent<HTMLInputElement>) => {
+        fontSize={["1rem", "1.2rem"]}
+        onChange={(e) => {
           setUpdateTask((prev) => ({
             ...prev,
             description: e.target.value,
           }));
         }}
       />
-      <Box textAlign="left" fontSize="1.2rem" mt="1rem">
+      <Box textAlign="left" fontSize={["1rem", "1.2rem"]} mt="1rem">
         <Text fontWeight="bold">Subtasks</Text>
 
         {taskById?.subtasks && taskById.subtasks.length > 0 && (
           <VStack overflowY="scroll" gap="1rem" mt=".5rem" h="10rem">
-            {taskById.subtasks.map((subtask, i) => {
-              return (
-                <HStack
-                  w="100%"
-                  justifyContent="space-between"
-                  alignItems="center"
-                  pr=".5rem"
-                  pl=".5rem"
-                >
-                  <Input
-                    key={i}
-                    type="text"
-                    defaultValue={subtask.name}
-                    outline="none"
-                    border="none"
-                    fontSize="1rem"
-                    mb="-1.5rem"
-                    onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) =>
-                      e.key === "Enter" &&
-                      editSubtask(e.currentTarget.value, id, subtask.id!)
+            {taskById.subtasks.map((subtask, i) => (
+              <HStack
+                key={i}
+                w="100%"
+                justifyContent="space-between"
+                alignItems="center"
+                pr=".5rem"
+                pl=".5rem"
+              >
+                <Input
+                  type="text"
+                  defaultValue={subtask.name}
+                  textDecoration={subtask.is_done ? "line-through" : "none"}
+                  outline="none"
+                  border="none"
+                  fontSize={["1rem", "1.2rem"]}
+                  mb="-1.5rem"
+                  onKeyDown={(e) =>
+                    e.key === "Enter" &&
+                    editSubtask(e.currentTarget.value, id, subtask.id!)
+                  }
+                />
+                <Box mb="-1.5rem">
+                  <Checkbox
+                    checked={subtask.is_done!}
+                    onChange={() =>
+                      toggleSubtaskDone(subtask.id!, !subtask.is_done)
                     }
                   />
-                  <Box mb="-1.5rem">
-                    <Checkbox checked={subtask.is_done!} />
-                  </Box>
-                </HStack>
-              );
-            })}
+                </Box>
+              </HStack>
+            ))}
           </VStack>
         )}
         {openInputToAddSubtask && (
@@ -166,7 +208,7 @@ const EditBox: React.FC<IProps> = ({
               border="none"
               mb="1rem"
               borderBottom="1px solid #c4c4c4"
-              onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) =>
+              onKeyDown={(e) =>
                 e.key === "Enter" && addSubtask(e.currentTarget.value)
               }
             />
@@ -181,7 +223,7 @@ const EditBox: React.FC<IProps> = ({
           onClick={() => setOpenInputToAddSubtask(!openInputToAddSubtask)}
         >
           <IoMdAdd />
-          Adicionar Subtask
+          {openInputToAddSubtask ? "Cancelar" : "Adicionar Subtask"}
         </Button>
       </Box>
       <HStack w="100%">
@@ -201,7 +243,7 @@ const EditBox: React.FC<IProps> = ({
       </HStack>
       {openDelete && (
         <VStack mt="1rem">
-          <Text fontSize="1.2rem">
+          <Text fontSize={["1rem", "1.2rem"]}>
             Tem certeza que deseja excluir essa task?
           </Text>
           <HStack>
